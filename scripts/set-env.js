@@ -18,7 +18,7 @@ if (fs.existsSync(envPath)) {
 // Override with actual environment variables (for Docker/CI)
 const SUPABASE_URL = process.env.SUPABASE_URL || envVars.SUPABASE_URL || 'SUPABASE_URL_PLACEHOLDER';
 const SUPABASE_KEY = process.env.SUPABASE_KEY || envVars.SUPABASE_KEY || 'SUPABASE_KEY_PLACEHOLDER';
-const BINANCE_WS_URL = process.env.BINANCE_WS_URL || envVars.BINANCE_WS_URL || 'wss://stream.binance.com:9443/stream';
+const BINANCE_WS_URL = process.env.BINANCE_WS_URL || envVars.BINANCE_WS_URL || 'BINANCE_WS_URL_PLACEHOLDER';
 
 const targetDir = path.resolve(__dirname, '..', 'src', 'environments');
 const targetPath = path.resolve(targetDir, 'environment.ts');
