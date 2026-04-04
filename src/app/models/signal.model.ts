@@ -1,0 +1,35 @@
+export interface Signal {
+  id: string;
+  created_at: string;
+  asset: string;
+  timeframe: string;
+  status: string;
+  signal: string;
+  confidence: number;
+  quality: string;
+  entry: number | null;
+  stop_loss: number | null;
+  take_profit: number | null;
+  risk_pct: number | null;
+  dominance: number;
+  matches_used: number;
+  details: string | null;
+  confirmed: boolean | null;
+  confirmations: string | null;
+  confirmation_details: string | null;
+  ema9: number | null;
+  ema21: number | null;
+  momentum_1h: number | null;
+  volume_rising: boolean | null;
+  entry_score: number | null;
+  entry_details: string | null;
+  recent_high: number | null;
+  recent_low: number | null;
+  validated_signal: string;
+  override: boolean;
+  override_reason: string | null;
+  context: string | null;
+  result: string | null;
+  actual_pnl: number | null;
+  notes: string | null;
+}

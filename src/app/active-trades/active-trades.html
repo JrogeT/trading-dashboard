@@ -1,0 +1,170 @@
+<div class="active-container">
+  <h2 class="page-title">
+    <mat-icon>flash_on</mat-icon>
+    Active Trades
+    <span class="trade-count">{{ trades().length }}</span>
+    @if (isLive()) {
+      <span class="live-indicator" matTooltip="Live price feed connected">
+        <span class="live-dot"></span> LIVE
+      </span>
+    }
+    <button mat-icon-button (click)="loadTrades()" matTooltip="Refresh" class="refresh-btn">
+      <mat-icon>refresh</mat-icon>
+    </button>
+  </h2>
+
+  @if (loading()) {
+    <div class="loading-container">
+      <mat-spinner diameter="48"></mat-spinner>
+    </div>
+  }
+
+  @if (error()) {
+    <mat-card class="error-card">
+      <mat-card-content>
+        <mat-icon>error</mat-icon>
+        <span>{{ error() }}</span>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  @if (!loading() && !error()) {
+    @if (trades().length === 0) {
+      <div class="empty-msg">No active trades</div>
+    } @else {
+      <mat-card class="table-card">
+        <div class="table-wrapper">
+          <table mat-table [dataSource]="trades()" class="trades-table">
+
+            <ng-container matColumnDef="created_at">
+              <th mat-header-cell *matHeaderCellDef>Time</th>
+              <td mat-cell *matCellDef="let row">{{ formatTime(row.created_at) }}</td>
+            </ng-container>
+
+            <ng-container matColumnDef="signal">
+              <th mat-header-cell *matHeaderCellDef>Signal</th>
+              <td mat-cell *matCellDef="let row">
+                <mat-icon [style.color]="getSignalColor(row.signal)" [matTooltip]="row.signal">{{ getSignalIcon(row.signal) }}</mat-icon>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="validated_signal">
+              <th mat-header-cell *matHeaderCellDef>Validated</th>
+              <td mat-cell *matCellDef="let row">
+                <mat-icon [style.color]="getSignalColor(row.validated_signal)" [matTooltip]="row.validated_signal">{{ getSignalIcon(row.validated_signal) }}</mat-icon>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="confidence">
+              <th mat-header-cell *matHeaderCellDef>Conf%</th>
+              <td mat-cell *matCellDef="let row">
+                <span [class.high-conf]="row.confidence >= 70" [class.low-conf]="row.confidence < 50">{{ row.confidence | number:'1.1-1' }}</span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="quality">
+              <th mat-header-cell *matHeaderCellDef>Quality</th>
+              <td mat-cell *matCellDef="let row">
+                <mat-icon [style.color]="getQualityColor(row.quality)" [matTooltip]="row.quality">{{ getQualityIcon(row.quality) }}</mat-icon>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="entry">
+              <th mat-header-cell *matHeaderCellDef>Entry</th>
+              <td mat-cell *matCellDef="let row">
+                <span class="price-cell" [class.clickable]="row.entry !== null" (click)="copyToClipboard(row.entry)" matTooltip="Click to copy">{{ formatNumber(row.entry) }}</span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="stop_loss">
+              <th mat-header-cell *matHeaderCellDef>SL</th>
+              <td mat-cell *matCellDef="let row">
+                <span class="price-cell sl-cell" [class.clickable]="row.stop_loss !== null" (click)="copyToClipboard(row.stop_loss)" matTooltip="Click to copy">{{ formatNumber(row.stop_loss) }}</span>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="take_profit">
+              <th mat-header-cell *matHeaderCellDef>TP</th>
+              <td mat-cell *matCellDef="let row">
+                <span class="price-cell tp-cell" [class.clickable]="row.take_profit !== null" (click)="copyToClipboard(row.take_profit)" matTooltip="Click to copy">{{ formatNumber(row.take_profit) }}</span>
+              </td>
+            </ng-container>
+
+            <!-- Live Price -->
+            <ng-container matColumnDef="price">
+              <th mat-header-cell *matHeaderCellDef>Price</th>
+              <td mat-cell *matCellDef="let row">
+                <span class="live-price" [class.clickable]="getLivePrice(row) !== null" (click)="copyToClipboard(getLivePrice(row))">
+                  {{ formatNumber(getLivePrice(row)) }}
+                </span>
+              </td>
+            </ng-container>
+
+            <!-- PnL -->
+            <ng-container matColumnDef="pnl">
+              <th mat-header-cell *matHeaderCellDef>PnL%</th>
+              <td mat-cell *matCellDef="let row">
+                @if (getPnl(row) !== null) {
+                  <span class="pnl" [class.pnl-pos]="getPnl(row)! > 0" [class.pnl-neg]="getPnl(row)! < 0">
+                    {{ getPnl(row)! > 0 ? '+' : '' }}{{ getPnl(row)! | number:'1.2-2' }}%
+                  </span>
+                } @else {
+                  <span>-</span>
+                }
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="override">
+              <th mat-header-cell *matHeaderCellDef>OVR</th>
+              <td mat-cell *matCellDef="let row">
+                <mat-checkbox [checked]="row.override" [disabled]="true"></mat-checkbox>
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="override_reason">
+              <th mat-header-cell *matHeaderCellDef>Reason</th>
+              <td mat-cell *matCellDef="let row">
+                @if (row.override_reason) {
+                  <button mat-icon-button class="icon-btn" (click)="showFullText('Override Reason', row.override_reason)" matTooltip="Show reason">
+                    <mat-icon>description</mat-icon>
+                  </button>
+                } @else {
+                  <span class="empty-cell">-</span>
+                }
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="context">
+              <th mat-header-cell *matHeaderCellDef>Ctx</th>
+              <td mat-cell *matCellDef="let row">
+                @if (row.context) {
+                  <button mat-icon-button class="icon-btn" (click)="showFullText('Context', row.context)" matTooltip="Show context">
+                    <mat-icon>info</mat-icon>
+                  </button>
+                } @else {
+                  <span class="empty-cell">-</span>
+                }
+              </td>
+            </ng-container>
+
+            <ng-container matColumnDef="entry_details">
+              <th mat-header-cell *matHeaderCellDef>Details</th>
+              <td mat-cell *matCellDef="let row">
+                @if (row.entry_details) {
+                  <button mat-icon-button class="icon-btn" (click)="showFullText('Entry Details', row.entry_details)" matTooltip="Show details">
+                    <mat-icon>article</mat-icon>
+                  </button>
+                } @else {
+                  <span class="empty-cell">-</span>
+                }
+              </td>
+            </ng-container>
+
+            <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+            <tr mat-row *matRowDef="let row; columns: displayedColumns;" [ngClass]="getRowClass(row)"></tr>
+          </table>
+        </div>
+      </mat-card>
+    }
+  }
+</div>

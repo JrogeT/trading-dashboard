@@ -1,0 +1,116 @@
+.active-container {
+  padding: 16px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.page-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  font-size: 18px;
+  font-weight: 500;
+
+  .trade-count {
+    background: #eee;
+    border-radius: 12px;
+    padding: 2px 10px;
+    font-size: 13px;
+  }
+
+  .refresh-btn { margin-left: auto; }
+
+  .live-indicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #4caf50;
+    letter-spacing: 0.5px;
+  }
+
+  .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #4caf50;
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4); }
+    50% { opacity: 0.6; box-shadow: 0 0 0 4px rgba(76, 175, 80, 0); }
+  }
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  padding: 48px;
+}
+
+.error-card {
+  background: #fde8e8;
+  mat-card-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #f44336;
+  }
+}
+
+.empty-msg {
+  text-align: center;
+  padding: 32px;
+  color: #999;
+  font-size: 16px;
+}
+
+.table-card { overflow: hidden; }
+.table-wrapper { overflow-x: auto; }
+
+.row-4h { border-left: 3px solid #2196f3; background: rgba(33, 150, 243, 0.05); }
+.row-1h { border-left: 3px solid #9e9e9e; background: rgba(158, 158, 158, 0.05); }
+.row-15m { border-left: 3px solid #4caf50; background: rgba(76, 175, 80, 0.05); }
+
+.high-conf { color: #4caf50; font-weight: 600; }
+.low-conf { color: #f44336; }
+.sl-cell { color: #f44336; }
+.tp-cell { color: #4caf50; }
+
+.price-cell {
+  font-family: monospace;
+  &.clickable {
+    cursor: pointer;
+    border-bottom: 1px dashed rgba(0, 0, 0, 0.3);
+    &:hover { opacity: 0.6; }
+  }
+}
+
+.icon-btn {
+  width: 24px !important;
+  height: 24px !important;
+  line-height: 24px !important;
+  .mat-icon { font-size: 16px; width: 16px; height: 16px; }
+}
+
+.empty-cell { color: #999; }
+
+.live-price {
+  font-family: monospace;
+  font-weight: 600;
+  &.clickable {
+    cursor: pointer;
+    &:hover { opacity: 0.6; }
+  }
+}
+
+.pnl {
+  font-family: monospace;
+  font-weight: 700;
+  font-size: 13px;
+}
+.pnl-pos { color: #4caf50; }
+.pnl-neg { color: #f44336; }

@@ -1,0 +1,200 @@
+<div class="dashboard-container">
+  <!-- Summary Cards -->
+  <div class="summary-cards">
+    <mat-card class="summary-card">
+      <mat-card-content>
+        <div class="card-label">Total Signals</div>
+        <div class="card-value">{{ totalSignals }}</div>
+      </mat-card-content>
+    </mat-card>
+    <mat-card class="summary-card long">
+      <mat-card-content>
+        <div class="card-label">Long</div>
+        <div class="card-value">{{ longSignals }}</div>
+      </mat-card-content>
+    </mat-card>
+    <mat-card class="summary-card short">
+      <mat-card-content>
+        <div class="card-label">Short</div>
+        <div class="card-value">{{ shortSignals }}</div>
+      </mat-card-content>
+    </mat-card>
+    <mat-card class="summary-card">
+      <mat-card-content>
+        <div class="card-label">Avg Confidence</div>
+        <div class="card-value">{{ avgConfidence | number:'1.1-1' }}%</div>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Loading -->
+  @if (loading()) {
+    <div class="loading-container">
+      <mat-spinner diameter="48"></mat-spinner>
+    </div>
+  }
+
+  <!-- Error -->
+  @if (error()) {
+    <mat-card class="error-card">
+      <mat-card-content>
+        <mat-icon>error</mat-icon>
+        <span>{{ error() }}</span>
+      </mat-card-content>
+    </mat-card>
+  }
+
+  <!-- Signals Table -->
+  @if (!loading() && !error()) {
+    <mat-card class="table-card">
+      <div class="table-wrapper">
+        <table mat-table [dataSource]="visibleRows()" class="signals-table">
+
+          <!-- Toggle -->
+          <ng-container matColumnDef="toggle">
+            <th mat-header-cell *matHeaderCellDef class="toggle-col"></th>
+            <td mat-cell *matCellDef="let row" class="toggle-col">
+              @if (row.hasChildren) {
+                <mat-icon class="toggle-icon" (click)="toggleRow(row.signal.id)">
+                  {{ isCollapsed(row.signal.id) ? 'chevron_right' : 'expand_more' }}
+                </mat-icon>
+              }
+            </td>
+          </ng-container>
+
+          <!-- Time -->
+          <ng-container matColumnDef="created_at">
+            <th mat-header-cell *matHeaderCellDef>Time</th>
+            <td mat-cell *matCellDef="let row">
+              <span [style.padding-left.px]="row.depth * 16">{{ formatTime(row.signal.created_at) }}</span>
+            </td>
+          </ng-container>
+
+          <!-- Signal Icon -->
+          <ng-container matColumnDef="signal">
+            <th mat-header-cell *matHeaderCellDef>Signal</th>
+            <td mat-cell *matCellDef="let row">
+              <mat-icon [style.color]="getSignalColor(row.signal.signal)" [matTooltip]="row.signal.signal">
+                {{ getSignalIcon(row.signal.signal) }}
+              </mat-icon>
+            </td>
+          </ng-container>
+
+          <!-- Validated Signal Icon -->
+          <ng-container matColumnDef="validated_signal">
+            <th mat-header-cell *matHeaderCellDef>Validated</th>
+            <td mat-cell *matCellDef="let row">
+              <mat-icon [style.color]="getSignalColor(row.signal.validated_signal)" [matTooltip]="row.signal.validated_signal">
+                {{ getSignalIcon(row.signal.validated_signal) }}
+              </mat-icon>
+            </td>
+          </ng-container>
+
+          <!-- Status -->
+          <ng-container matColumnDef="status">
+            <th mat-header-cell *matHeaderCellDef>Status</th>
+            <td mat-cell *matCellDef="let row">{{ row.signal.status }}</td>
+          </ng-container>
+
+          <!-- Confidence -->
+          <ng-container matColumnDef="confidence">
+            <th mat-header-cell *matHeaderCellDef>Conf%</th>
+            <td mat-cell *matCellDef="let row">
+              <span [class.high-conf]="row.signal.confidence >= 70" [class.low-conf]="row.signal.confidence < 50">
+                {{ row.signal.confidence | number:'1.1-1' }}
+              </span>
+            </td>
+          </ng-container>
+
+          <!-- Quality Icon -->
+          <ng-container matColumnDef="quality">
+            <th mat-header-cell *matHeaderCellDef>Quality</th>
+            <td mat-cell *matCellDef="let row">
+              <mat-icon [style.color]="getQualityColor(row.signal.quality)" [matTooltip]="row.signal.quality" class="quality-icon">
+                {{ getQualityIcon(row.signal.quality) }}
+              </mat-icon>
+            </td>
+          </ng-container>
+
+          <!-- Entry -->
+          <ng-container matColumnDef="entry">
+            <th mat-header-cell *matHeaderCellDef>Entry</th>
+            <td mat-cell *matCellDef="let row">
+              <span class="price-cell" [class.clickable]="row.signal.entry !== null" (click)="copyToClipboard(row.signal.entry)" matTooltip="Click to copy">{{ formatNumber(row.signal.entry) }}</span>
+            </td>
+          </ng-container>
+
+          <!-- Stop Loss -->
+          <ng-container matColumnDef="stop_loss">
+            <th mat-header-cell *matHeaderCellDef>SL</th>
+            <td mat-cell *matCellDef="let row">
+              <span class="price-cell sl-cell" [class.clickable]="row.signal.stop_loss !== null" (click)="copyToClipboard(row.signal.stop_loss)" matTooltip="Click to copy">{{ formatNumber(row.signal.stop_loss) }}</span>
+            </td>
+          </ng-container>
+
+          <!-- Take Profit -->
+          <ng-container matColumnDef="take_profit">
+            <th mat-header-cell *matHeaderCellDef>TP</th>
+            <td mat-cell *matCellDef="let row">
+              <span class="price-cell tp-cell" [class.clickable]="row.signal.take_profit !== null" (click)="copyToClipboard(row.signal.take_profit)" matTooltip="Click to copy">{{ formatNumber(row.signal.take_profit) }}</span>
+            </td>
+          </ng-container>
+
+          <!-- Override Checkbox -->
+          <ng-container matColumnDef="override">
+            <th mat-header-cell *matHeaderCellDef>OVR</th>
+            <td mat-cell *matCellDef="let row">
+              <mat-checkbox [checked]="row.signal.override" [disabled]="true"></mat-checkbox>
+            </td>
+          </ng-container>
+
+          <!-- Override Reason -->
+          <ng-container matColumnDef="override_reason">
+            <th mat-header-cell *matHeaderCellDef>Reason</th>
+            <td mat-cell *matCellDef="let row">
+              @if (row.signal.override_reason) {
+                <button mat-icon-button class="icon-btn" (click)="showFullText('Override Reason', row.signal.override_reason)" matTooltip="Show reason">
+                  <mat-icon>description</mat-icon>
+                </button>
+              } @else {
+                <span class="empty-cell">-</span>
+              }
+            </td>
+          </ng-container>
+
+          <!-- Context -->
+          <ng-container matColumnDef="context">
+            <th mat-header-cell *matHeaderCellDef>Ctx</th>
+            <td mat-cell *matCellDef="let row">
+              @if (row.signal.context) {
+                <button mat-icon-button class="icon-btn" (click)="showFullText('Context', row.signal.context)" matTooltip="Show context">
+                  <mat-icon>info</mat-icon>
+                </button>
+              } @else {
+                <span class="empty-cell">-</span>
+              }
+            </td>
+          </ng-container>
+
+          <!-- Entry Details -->
+          <ng-container matColumnDef="entry_details">
+            <th mat-header-cell *matHeaderCellDef>Details</th>
+            <td mat-cell *matCellDef="let row">
+              @if (row.signal.entry_details) {
+                <button mat-icon-button class="icon-btn" (click)="showFullText('Entry Details', row.signal.entry_details)" matTooltip="Show details">
+                  <mat-icon>article</mat-icon>
+                </button>
+              } @else {
+                <span class="empty-cell">-</span>
+              }
+            </td>
+          </ng-container>
+
+          <!-- Row definition -->
+          <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
+          <tr mat-row *matRowDef="let row; columns: displayedColumns;" [ngClass]="getRowClass(row)"></tr>
+        </table>
+      </div>
+    </mat-card>
+  }
+</div>

@@ -1,0 +1,16 @@
+.app-toolbar {
+  gap: 8px;
+
+  .app-title {
+    font-size: 18px;
+    font-weight: 500;
+  }
+}
+
+.nav-tabs {
+  a {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
