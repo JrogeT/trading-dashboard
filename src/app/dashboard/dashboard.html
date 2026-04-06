@@ -1,28 +1,106 @@
 <div class="dashboard-container">
   <!-- Summary Cards -->
   <div class="summary-cards">
+    <!-- Column 1: 3D -->
+    <mat-card class="summary-card sentiment-card">
+      <mat-card-content>
+        <div class="card-label">Sentiment · 3D</div>
+        <div class="sentiment-bar-wrapper">
+          <div class="sentiment-bar">
+            <div class="bar-long" [style.width.%]="sentiment3d.longPct"></div>
+            <div class="bar-neutral" [style.width.%]="sentiment3d.noTradePct"></div>
+            <div class="bar-short" [style.width.%]="sentiment3d.shortPct"></div>
+          </div>
+        </div>
+        <div class="sentiment-counts">
+          <span class="long-count"><mat-icon>trending_up</mat-icon>{{ sentiment3d.longs }}</span>
+          <span class="neutral-count"><mat-icon>do_not_disturb_on</mat-icon>{{ sentiment3d.noTrade }}</span>
+          <span class="short-count"><mat-icon>trending_down</mat-icon>{{ sentiment3d.shorts }}</span>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Column 2: 7D -->
+    <mat-card class="summary-card sentiment-card">
+      <mat-card-content>
+        <div class="card-label">Sentiment · 7D</div>
+        <div class="sentiment-bar-wrapper">
+          <div class="sentiment-bar">
+            <div class="bar-long" [style.width.%]="sentiment7d.longPct"></div>
+            <div class="bar-neutral" [style.width.%]="sentiment7d.noTradePct"></div>
+            <div class="bar-short" [style.width.%]="sentiment7d.shortPct"></div>
+          </div>
+        </div>
+        <div class="sentiment-counts">
+          <span class="long-count"><mat-icon>trending_up</mat-icon>{{ sentiment7d.longs }}</span>
+          <span class="neutral-count"><mat-icon>do_not_disturb_on</mat-icon>{{ sentiment7d.noTrade }}</span>
+          <span class="short-count"><mat-icon>trending_down</mat-icon>{{ sentiment7d.shorts }}</span>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Column 3: Last Signal -->
     <mat-card class="summary-card">
       <mat-card-content>
-        <div class="card-label">Total Signals</div>
-        <div class="card-value">{{ totalSignals }}</div>
+        <div class="card-label">Last Signal</div>
+        <div class="card-value">
+          <mat-icon>schedule</mat-icon>
+          {{ lastSignalAgo }}
+        </div>
       </mat-card-content>
     </mat-card>
-    <mat-card class="summary-card long">
+
+    <!-- Column 1: Quality 3D -->
+    <mat-card class="summary-card quality-card">
       <mat-card-content>
-        <div class="card-label">Long</div>
-        <div class="card-value">{{ longSignals }}</div>
+        <div class="card-label">Quality · 3D</div>
+        <div class="quality-bar-wrapper">
+          <div class="quality-bar">
+            @if (quality3d.total > 0) {
+              <div class="bar-high" [style.width.%]="quality3d.high / quality3d.total * 100"></div>
+              <div class="bar-medium" [style.width.%]="quality3d.medium / quality3d.total * 100"></div>
+              <div class="bar-low" [style.width.%]="quality3d.low / quality3d.total * 100"></div>
+            }
+          </div>
+        </div>
+        <div class="quality-counts">
+          <span class="q-high"><mat-icon>verified</mat-icon>{{ quality3d.high }}</span>
+          <span class="q-medium"><mat-icon>check_circle</mat-icon>{{ quality3d.medium }}</span>
+          <span class="q-low"><mat-icon>cancel</mat-icon>{{ quality3d.low }}</span>
+        </div>
       </mat-card-content>
     </mat-card>
-    <mat-card class="summary-card short">
+
+    <!-- Column 2: Quality 7D -->
+    <mat-card class="summary-card quality-card">
       <mat-card-content>
-        <div class="card-label">Short</div>
-        <div class="card-value">{{ shortSignals }}</div>
+        <div class="card-label">Quality · 7D</div>
+        <div class="quality-bar-wrapper">
+          <div class="quality-bar">
+            @if (quality7d.total > 0) {
+              <div class="bar-high" [style.width.%]="quality7d.high / quality7d.total * 100"></div>
+              <div class="bar-medium" [style.width.%]="quality7d.medium / quality7d.total * 100"></div>
+              <div class="bar-low" [style.width.%]="quality7d.low / quality7d.total * 100"></div>
+            }
+          </div>
+        </div>
+        <div class="quality-counts">
+          <span class="q-high"><mat-icon>verified</mat-icon>{{ quality7d.high }}</span>
+          <span class="q-medium"><mat-icon>check_circle</mat-icon>{{ quality7d.medium }}</span>
+          <span class="q-low"><mat-icon>cancel</mat-icon>{{ quality7d.low }}</span>
+        </div>
       </mat-card-content>
     </mat-card>
+
+    <!-- Column 3: Avg Confidence Yesterday -->
     <mat-card class="summary-card">
       <mat-card-content>
-        <div class="card-label">Avg Confidence</div>
-        <div class="card-value">{{ avgConfidence | number:'1.1-1' }}%</div>
+        <div class="card-label">Avg Confidence · Yesterday</div>
+        <div class="card-value" [class.high-conf]="avgConfYesterday >= 70" [class.low-conf]="avgConfYesterday > 0 && avgConfYesterday < 50">
+          <mat-icon>speed</mat-icon>
+          {{ avgConfYesterday > 0 ? (avgConfYesterday | number:'1.0-0') + '%' : '-' }}
+        </div>
+        <div class="conf-detail">{{ signalsYesterday }} signals</div>
       </mat-card-content>
     </mat-card>
   </div>
@@ -66,7 +144,7 @@
           <ng-container matColumnDef="created_at">
             <th mat-header-cell *matHeaderCellDef>Time</th>
             <td mat-cell *matCellDef="let row">
-              <span [style.padding-left.px]="row.depth * 16">{{ formatTime(row.signal.created_at) }}</span>
+              <span [style.padding-left.px]="row.depth * 16" [matTooltip]="row.signal.created_at | date:'full'">{{ formatTime(row.signal.created_at) }}</span>
             </td>
           </ng-container>
 

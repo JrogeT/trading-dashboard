@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatTableModule } from '@angular/material/table';
 import { MatCardModule } from '@angular/material/card';
@@ -8,7 +8,9 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatDialogModule, MatDialog } from '@angular/material/dialog';
+import { Subscription } from 'rxjs';
 import { SignalsService } from '../services/signals.service';
+import { BinanceService } from '../services/binance.service';
 import { Signal } from '../models/signal.model';
 import { TextDialogComponent } from './text-dialog';
 
@@ -36,14 +38,17 @@ interface TreeRow {
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.scss',
 })
-export class Dashboard implements OnInit {
+export class Dashboard implements OnInit, OnDestroy {
   private signalsService = inject(SignalsService);
+  private binanceService = inject(BinanceService);
   private dialog = inject(MatDialog);
+  private priceSub: Subscription | null = null;
 
   signals = signal<Signal[]>([]);
   loading = signal(true);
   error = signal<string | null>(null);
   collapsed = signal<Set<string>>(new Set());
+  prices = signal<Map<string, number>>(new Map());
 
   displayedColumns = [
     'toggle',
@@ -97,6 +102,16 @@ export class Dashboard implements OnInit {
         tree.filter(r => r.hasChildren).map(r => r.signal.id)
       );
       this.collapsed.set(collapsedIds);
+      // Subscribe to live prices
+      const assets = [...new Set(data.map(s => s.asset))];
+      this.binanceService.subscribe(assets);
+      this.priceSub = this.binanceService.price$.subscribe(tick => {
+        this.prices.update(map => {
+          const next = new Map(map);
+          next.set(tick.symbol, tick.price);
+          return next;
+        });
+      });
     } catch (e: unknown) {
       this.error.set(e instanceof Error ? e.message : 'Failed to load signals');
     } finally {
@@ -205,29 +220,90 @@ export class Dashboard implements OnInit {
     return this.collapsed().has(id);
   }
 
-  get totalSignals(): number {
-    return this.signals().length;
+  get sentiment3d() { return this.getSentiment(3); }
+  get sentiment7d() { return this.getSentiment(7); }
+  get quality3d() { return this.getQuality(3); }
+  get quality7d() { return this.getQuality(7); }
+
+  get avgConfYesterday(): number {
+    const yesterday = this.getYesterdaySignals();
+    if (yesterday.length === 0) return 0;
+    return yesterday.reduce((sum, s) => sum + s.confidence, 0) / yesterday.length;
   }
 
-  get longSignals(): number {
-    return this.signals().filter((s) => s.validated_signal === 'LONG').length;
+  get signalsYesterday(): number {
+    return this.getYesterdaySignals().length;
   }
 
-  get shortSignals(): number {
-    return this.signals().filter((s) => s.validated_signal === 'SHORT').length;
+  private getYesterdaySignals(): Signal[] {
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfYesterday = new Date(startOfToday);
+    startOfYesterday.setDate(startOfYesterday.getDate() - 1);
+    return this.signals().filter(s => {
+      const d = new Date(s.created_at);
+      return d >= startOfYesterday && d < startOfToday;
+    });
   }
 
-  get avgConfidence(): number {
+  get lastSignalAgo(): string {
     const sigs = this.signals();
-    if (sigs.length === 0) return 0;
-    return sigs.reduce((sum, s) => sum + s.confidence, 0) / sigs.length;
+    if (sigs.length === 0) return '-';
+    const latest = new Date(sigs[0].created_at);
+    const diff = Date.now() - latest.getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ${mins % 60}m ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ${hours % 24}h ago`;
+  }
+
+  private getSentiment(days: number) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const recent = this.signals().filter(s => new Date(s.created_at) >= cutoff);
+    const longSigs = recent.filter(s => s.validated_signal === 'LONG');
+    const shortSigs = recent.filter(s => s.validated_signal === 'SHORT');
+    const longs = longSigs.length;
+    const shorts = shortSigs.length;
+    const noTrade = recent.filter(s => s.validated_signal !== 'LONG' && s.validated_signal !== 'SHORT').length;
+    const total = longs + shorts + noTrade;
+
+    return {
+      longs, shorts, noTrade, total,
+      longPct: total > 0 ? Math.round((longs / total) * 100) : 0,
+      noTradePct: total > 0 ? Math.round((noTrade / total) * 100) : 0,
+      shortPct: total > 0 ? Math.round((shorts / total) * 100) : 0,
+    };
+  }
+
+  private getQuality(days: number) {
+    const cutoff = new Date();
+    cutoff.setDate(cutoff.getDate() - days);
+    const recent = this.signals().filter(s => new Date(s.created_at) >= cutoff && s.quality);
+    const high = recent.filter(s => s.quality === 'HIGH').length;
+    const medium = recent.filter(s => s.quality === 'MEDIUM').length;
+    const low = recent.filter(s => s.quality === 'LOW').length;
+    const total = high + medium + low;
+    return { high, medium, low, total };
+  }
+
+  ngOnDestroy() {
+    this.priceSub?.unsubscribe();
+    this.binanceService.close();
+  }
+
+  getPrice(asset: string): number | null {
+    const symbol = asset.toUpperCase() + 'USDT';
+    return this.prices().get(symbol) ?? null;
   }
 
   getSignalIcon(signalType: string): string {
     switch (signalType) {
       case 'LONG': return 'trending_up';
       case 'SHORT': return 'trending_down';
-      default: return 'remove';
+      default: return 'do_not_disturb_on';
     }
   }
 
