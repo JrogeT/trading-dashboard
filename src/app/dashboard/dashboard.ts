@@ -120,46 +120,30 @@ export class Dashboard implements OnInit, OnDestroy {
   }
 
   private buildTree(signals: Signal[]): TreeRow[] {
-    // Sort by time ascending — parents come first, children after
+    // Sort by time ascending
     const sorted = [...signals].sort((a, b) =>
       new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
     );
 
     const rows: TreeRow[] = [];
-    const parentMap = new Map<string, string>(); // signal id -> parent id
     const hasChildrenSet = new Set<string>();
 
-    // Track current parent at each level per asset
-    const current4H = new Map<string, string>(); // asset -> 4H signal id
-    const current1H = new Map<string, string>(); // asset -> 1H signal id
+    // 1H rows are parents; 4H and 15M are children of the nearest preceding 1H
+    const current1H = new Map<string, string>(); // asset -> current 1H signal id
 
     for (const s of sorted) {
       const tf = s.timeframe;
       const is15M = tf === '15' || tf === '15m' || tf === '15M';
 
-      if (tf === '4H') {
-        // New 4H resets the 1H tracker for this asset
-        current4H.set(s.asset, s.id);
-        current1H.delete(s.asset);
-        rows.push({ signal: s, depth: 0, parentId: null, hasChildren: false });
-      } else if (tf === '1H') {
-        const parent4H = current4H.get(s.asset) ?? null;
+      if (tf === '1H') {
         current1H.set(s.asset, s.id);
-        if (parent4H) {
-          parentMap.set(s.id, parent4H);
-          hasChildrenSet.add(parent4H);
-        }
-        rows.push({ signal: s, depth: parent4H ? 1 : 0, parentId: parent4H, hasChildren: false });
-      } else if (is15M) {
+        rows.push({ signal: s, depth: 0, parentId: null, hasChildren: false });
+      } else if (tf === '4H' || is15M) {
         const parent1H = current1H.get(s.asset) ?? null;
-        const parent4H = current4H.get(s.asset) ?? null;
-        const parentId = parent1H ?? parent4H ?? null;
-        const depth = parent1H ? 2 : (parent4H ? 1 : 0);
-        if (parentId) {
-          parentMap.set(s.id, parentId);
-          hasChildrenSet.add(parentId);
+        if (parent1H) {
+          hasChildrenSet.add(parent1H);
         }
-        rows.push({ signal: s, depth, parentId, hasChildren: false });
+        rows.push({ signal: s, depth: parent1H ? 1 : 0, parentId: parent1H, hasChildren: false });
       } else {
         rows.push({ signal: s, depth: 0, parentId: null, hasChildren: false });
       }
@@ -170,7 +154,7 @@ export class Dashboard implements OnInit, OnDestroy {
       row.hasChildren = hasChildrenSet.has(row.signal.id);
     }
 
-    // Group by root (depth 0), reverse groups so newest first, keep children below parent
+    // Group by root (depth 0), reverse groups so newest 1H first, children stay below parent in asc order
     const groups: TreeRow[][] = [];
     let currentGroup: TreeRow[] = [];
     for (const row of rows) {
@@ -181,24 +165,6 @@ export class Dashboard implements OnInit, OnDestroy {
       currentGroup.push(row);
     }
     if (currentGroup.length > 0) groups.push(currentGroup);
-
-    // Within each group, also reverse 1H sub-groups so newest 1H is first but its 15M stay below it
-    for (const group of groups) {
-      const parent = group[0]; // 4H row
-      const subGroups: TreeRow[][] = [];
-      let currentSub: TreeRow[] = [];
-      for (let i = 1; i < group.length; i++) {
-        if (group[i].depth === 1 && currentSub.length > 0) {
-          subGroups.push(currentSub);
-          currentSub = [];
-        }
-        currentSub.push(group[i]);
-      }
-      if (currentSub.length > 0) subGroups.push(currentSub);
-
-      group.length = 0;
-      group.push(parent, ...subGroups.flat());
-    }
 
     groups.reverse();
     return groups.flat();
@@ -333,7 +299,8 @@ export class Dashboard implements OnInit, OnDestroy {
 
   getRowClass(row: TreeRow): string {
     const tf = row.signal.timeframe;
-    const base = tf === '4H' ? 'row-4h' : tf === '1H' ? 'row-1h' : 'row-15m';
+    const is15M = tf === '15' || tf === '15m' || tf === '15M';
+    const base = tf === '1H' ? 'row-1h' : tf === '4H' ? 'row-4h' : is15M ? 'row-15m' : 'row-1h';
     return `${base} depth-${row.depth}`;
   }
 
